@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>缠命沈宅</title>
+  <style>
+/* =====================================================
+   目录：1 基础  2 锁屏  3 视频与吓人画面  4 桌面与任务栏
+         5 窗口  6 手机适配
+   ===================================================== */
+
+/* ---------- 1 基础 ---------- */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  color: #fff;
+  font-family: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei", sans-serif;
+  user-select: none;
+  cursor: default;
+}
+
+/* ---------- 2 锁屏 ---------- */
+#bg {
+  position: fixed; inset: 0;
+  background: url("bg.jpg") center/cover no-repeat, #1b2a41;
+}
+#bg::after { content: ""; position: absolute; inset: 0; background: rgba(0,0,0,.25); }
+
+#clockScreen {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column; align-items: center;
+  padding-top: 12vh;
+  transition: transform .45s ease, opacity .45s ease;
+}
+#clockScreen.hide { transform: translateY(-100%); opacity: 0; pointer-events: none; }
+#time { font-size: 8.5rem; font-weight: 600; line-height: 1; text-shadow: 0 2px 12px rgba(0,0,0,.4); }
+#date { font-size: 2rem; margin-top: .6rem; text-shadow: 0 2px 8px rgba(0,0,0,.4); }
+
+#login {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity .4s ease;
+  backdrop-filter: blur(30px) brightness(.7);
+}
+#login.show { opacity: 1; pointer-events: auto; }
+
+.avatar {
+  width: 200px; height: 200px; border-radius: 50%;
+  background: #d9d9d9;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 20px rgba(0,0,0,.4);
+}
+.avatar svg { width: 120px; height: 120px; fill: #8a8a8a; }
+#username { font-size: 2rem; font-weight: 600; margin: 1.2rem 0 1.4rem; }
+
+.pwbox { position: relative; width: 320px; }
+#pw {
+  width: 100%; height: 40px; padding: 0 44px 0 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,.5);
+  border-bottom: 2px solid #60cdff;
+  background: rgba(30,30,30,.7);
+  color: #fff; font-size: 1rem; outline: none;
+}
+#pw::placeholder { color: #bdbdbd; }
+#go {
+  position: absolute; right: 4px; top: 4px;
+  width: 32px; height: 32px;
+  border: 0; border-radius: 4px;
+  background: transparent; color: #fff; font-size: 1.1rem; cursor: pointer;
+}
+#go:hover { background: rgba(255,255,255,.15); }
+
+#pwHint  { margin-top: .9rem; font-size: .9rem; color: #fff; text-align: center; }
+#forgot  { margin-top: .7rem; font-size: .8rem; color: #ddd; text-align: center; }
+#loginBack {
+  margin-top: 1rem; height: 34px; padding: 0 16px;
+  border: 1px solid rgba(255,255,255,.45); border-radius: 4px;
+  background: rgba(255,255,255,.12); color: #fff; font-size: .92rem; cursor: pointer;
+}
+#loginBack:hover { background: rgba(255,255,255,.22); }
+#pwArea.hidden { display: none; }
+
+#errBox { display: none; flex-direction: column; align-items: center; }
+#errBox.show { display: flex; }
+#errBox p { font-size: 1rem; margin-bottom: 1.2rem; text-align: center; }
+#errBox button {
+  min-width: 100px; height: 34px;
+  border: 1px solid rgba(255,255,255,.4); border-radius: 4px;
+  background: rgba(255,255,255,.2); color: #fff; font-size: .95rem; cursor: pointer;
+}
+#errBox button:hover { background: rgba(255,255,255,.3); }
+
+#corner {
+  position: fixed; right: 28px; bottom: 24px;
+  display: flex; gap: 22px; font-size: 1.3rem; opacity: .9;
+}
+
+/* ---------- 3 视频与吓人画面 ---------- */
+#loading {
+  position: fixed; inset: 0; z-index: 5;
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.55); backdrop-filter: blur(30px);
+}
+#loading.show { display: flex; }
+.spinner {
+  width: 42px; height: 42px; margin-bottom: 1.2rem;
+  border: 4px solid rgba(255,255,255,.25); border-top-color: #fff; border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+#scare { position: fixed; inset: 0; z-index: 10; display: none; background: #000; }
+#scare.show { display: block; }
+#scare video { width: 100%; height: 100%; object-fit: cover; }
+
+/* 输错密码时的吓人画面：想换图就放 assets/scare.jpg，没有就用 desktop.jpg */
+#scream {
+  position: fixed; inset: 0; z-index: 200000; display: none; overflow: hidden;
+  background: url("desktop.jpg") center/cover no-repeat,
+              url("desktop.jpg") center/cover no-repeat, #000;
+}
+#scream.show { display: block; animation: shake .09s infinite, flash .22s steps(2) infinite; }
+#scream::after {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, transparent 25%, rgba(170,0,0,.8) 100%);
+}
+@keyframes shake {
+  0%   { transform: translate(0, 0)       scale(1.10); }
+  25%  { transform: translate(-16px, 9px) scale(1.16); }
+  50%  { transform: translate(13px, -11px) scale(1.12); }
+  75%  { transform: translate(-9px, -13px) scale(1.18); }
+  100% { transform: translate(11px, 11px) scale(1.10); }
+}
+@keyframes flash {
+  0%   { filter: brightness(1.8) contrast(1.5); }
+  100% { filter: brightness(.45) contrast(1.2) saturate(2.2); }
+}
+
+/* ---------- 4 桌面与任务栏 ---------- */
+#desktop {
+  position: fixed; inset: 0; z-index: 20; display: none; overflow: hidden;
+  background: url("desktop.jpg") center/cover no-repeat,
+              url("bg.jpg") center/cover no-repeat, #0f3a5f;
+}
+#desktop.show { display: block; animation: fadein .8s ease; }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+
+#icons {
+  position: absolute; top: 12px; left: 12px; bottom: 56px;
+  display: flex; flex-direction: column; flex-wrap: wrap; align-content: flex-start; gap: 6px;
+}
+.icon {
+  width: 88px; padding: 8px 4px; text-align: center;
+  border-radius: 6px; border: 1px solid transparent; cursor: pointer;
+}
+.icon:hover { background: rgba(255,255,255,.15); border-color: rgba(255,255,255,.25); }
+.icon .ico { font-size: 2.6rem; line-height: 1.2; filter: drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
+.icon .nm  { font-size: .78rem; margin-top: 4px; text-shadow: 0 1px 3px #000; word-break: break-all; }
+
+#taskbar {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 9999;
+  height: 48px; padding: 0 12px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: rgba(32,32,32,.85); backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255,255,255,.1);
+}
+.tbSpacer { width: 120px; }
+#tbLeft { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; }
+#tbClock { width: 120px; text-align: right; font-size: .75rem; line-height: 1.3; }
+.tbBtn {
+  height: 38px; min-width: 38px; max-width: 160px; padding: 0 12px;
+  display: flex; align-items: center; gap: 6px;
+  border: 0; border-radius: 6px; background: transparent; color: #fff;
+  font-size: .8rem; white-space: nowrap; overflow: hidden; cursor: pointer;
+}
+.tbBtn:hover  { background: rgba(255,255,255,.12); }
+.tbBtn.active { background: rgba(255,255,255,.18); border-bottom: 2px solid #60cdff; }
+.tbStart { font-size: 1.3rem; }
+
+/* ---------- 5 窗口 ---------- */
+.win {
+  position: absolute; display: flex; flex-direction: column; overflow: hidden;
+  background: #2b2b2b; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: 0 8px 32px rgba(0,0,0,.55);
+}
+.win.min { display: none; }
+
+.wtitle {
+  flex: none; height: 36px; padding-left: 12px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: #202020; font-size: .82rem; cursor: move; touch-action: none;
+}
+.wbtns { display: flex; height: 100%; }
+.wbtns span { width: 46px; display: flex; align-items: center; justify-content: center; font-size: .9rem; cursor: pointer; }
+.wbtns span:hover { background: rgba(255,255,255,.12); }
+.wbtns .wback:hover { background: rgba(96,205,255,.2); }
+.wbtns .wx:hover  { background: #c42b1c; }
+
+.wbody { flex: 1; min-height: 0; overflow: auto; }
+.wbody.text {
+  padding: 14px 16px; background: #fff; color: #111;
+  font-size: .95rem; line-height: 1.7; white-space: pre-wrap; user-select: text;
+}
+.wbody.media  { display: flex; align-items: center; justify-content: center; background: #000; }
+.wbody.media img, .wbody.media video { max-width: 100%; max-height: 100%; }
+.wbody.folder { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; padding: 10px; }
+.wbody.ask    { display: flex; align-items: center; justify-content: center; padding: 20px; }
+
+.askInner { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.askInner input {
+  width: 100%; height: 36px; padding: 0 10px;
+  border: 1px solid #777; border-bottom: 2px solid #60cdff; border-radius: 6px;
+  background: #1c1c1c; color: #fff; outline: none; user-select: text;
+}
+.askInner button { height: 32px; min-width: 90px; border: 0; border-radius: 4px; background: #60cdff; color: #000; cursor: pointer; }
+.askInner .msg { min-height: 1.2em; font-size: .85rem; color: #ff8a80; }
+
+/* ---------- 6 手机适配 ---------- */
+#rotateOverlay {
+  display: none; position: fixed; inset: 0; z-index: 300000;
+  flex-direction: column; align-items: center; justify-content: center;
+  padding: 28px; text-align: center; background: #050505;
+}
+.rotateIcon  { font-size: clamp(3.5rem, 18vw, 6rem); line-height: 1; margin-bottom: 24px; animation: rotateHint 1.8s ease-in-out infinite; }
+.rotateTitle { font-size: clamp(1.25rem, 5vw, 1.8rem); font-weight: 700; letter-spacing: .08em; }
+.rotateText  { margin-top: 10px; color: #bbb; font-size: clamp(.85rem, 3.5vw, 1rem); }
+@keyframes rotateHint { 0%, 100% { transform: rotate(0); } 45%, 70% { transform: rotate(-90deg); } }
+
+@media (max-width: 700px) {
+  body, #desktop { width: 100vw; height: 100dvh; }
+
+  #clockScreen { padding-top: 16vh; }
+  #time { font-size: clamp(4.2rem, 18vw, 7rem); }
+  #date { font-size: 1.15rem; }
+  .avatar { width: 120px; height: 120px; }
+  .avatar svg { width: 72px; height: 72px; }
+  #username { font-size: 1.45rem; margin: .9rem 0 1rem; }
+  .pwbox { width: min(82vw, 320px); }
+  #corner { right: 16px; bottom: 16px; font-size: 1rem; gap: 14px; }
+
+  #icons { top: 8px; left: 8px; bottom: 50px; gap: 4px; }
+  .icon { width: 72px; }
+  .icon .ico { font-size: 2.1rem; }
+  .icon .nm  { font-size: .68rem; }
+
+  #taskbar { height: 46px; padding: 0 6px; }
+  .tbSpacer { display: none; }
+  #tbClock { width: 92px; font-size: .65rem; }
+
+  .win { max-width: calc(100vw - 16px); max-height: calc(100dvh - 54px); border-radius: 6px; }
+  .wtitle { height: 34px; }
+}
+
+/* 手机竖屏：只显示"请横屏" */
+@media (max-width: 700px) and (orientation: portrait) {
+  #rotateOverlay { display: flex; }
+}
+
+/* 手机横屏（高度很矮） */
+@media (orientation: landscape) and (max-height: 500px) {
+  #clockScreen { padding-top: 8vh; }
+  #time { font-size: 4.8rem; }
+  #date { font-size: 1rem; }
+  .avatar { width: 90px; height: 90px; }
+  #username { margin: .4rem 0; }
+}
+
+#videoRetry { position:fixed; left:50%; bottom:9%; transform:translateX(-50%); z-index:9999; padding:12px 22px; border:1px solid #aaa; border-radius:8px; background:#161616; color:#fff; font-size:16px; cursor:pointer; }
+#videoRetry[hidden] { display:none !important; }
+
+/* ---------- 视频全屏播放：桌面内的视频不再使用普通窗口 ---------- */
+#videoPlayer {
+  display: none; position: fixed; inset: 0; width: 100vw; height: 100dvh;
+  background: #000; z-index: 250000; overflow: hidden;
+}
+#videoPlayer.show { display: flex; align-items: center; justify-content: center; }
+#fullscreenVideo { width: 100%; height: 100%; object-fit: contain; background: #000; }
+#closeVideo {
+  position: absolute; z-index: 2; left: max(16px, env(safe-area-inset-left));
+  top: max(12px, env(safe-area-inset-top));
+  border: 1px solid rgba(255,255,255,.45); border-radius: 7px;
+  padding: 10px 16px; background: rgba(0,0,0,.72); color: #fff;
+  font-size: 15px; cursor: pointer;
+}
+#closeVideo:hover { background: rgba(55,55,55,.85); }
+#videoMessage {
+  position: absolute; left: 50%; bottom: 16%; transform: translateX(-50%);
+  color: #fff; background: #262626dd; padding: 10px 16px; border-radius: 6px;
+  max-width: 90vw; text-align: center; pointer-events: none;
+}
+
+#videoMessage[hidden] { display:none !important; }
+
+</style>
+  <link rel="icon" href="data:,">
+</head>
+<body>
+
+  <!-- 手机竖屏时的"请横屏"提示 -->
+  <div id="rotateOverlay">
+    <div class="rotateIcon">↻</div>
+    <div class="rotateTitle">请将手机横向</div>
+    <div class="rotateText">请旋转手机至横屏后继续</div>
+  </div>
+
+  <!-- 锁屏：时间 -->
+  <div id="bg"></div>
+  <div id="clockScreen">
+    <div id="time">00:00</div>
+    <div id="date"></div>
+  </div>
+
+  <!-- 锁屏：登录 -->
+  <div id="login">
+    <div class="avatar">
+      <svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-4.4 0-8 2.2-8 5v3h16v-3c0-2.8-3.6-5-8-5z"/></svg>
+    </div>
+    <div id="username">沈少祺</div>
+
+    <div id="pwArea">
+      <div class="pwbox">
+        <input id="pw" type="password" inputmode="numeric" placeholder="密码" autocomplete="off" spellcheck="false">
+        <button id="go" title="提交">→</button>
+      </div>
+      <div id="pwHint" hidden></div>
+      <div id="forgot">我忘记了我的密码</div>
+      <button id="loginBack" type="button">← 返回锁屏</button>
+    </div>
+
+    <div id="errBox">
+      <p>密码不正确。请重试。</p>
+      <button id="errOk">确定</button>
+    </div>
+  </div>
+  <div id="corner"><span>📶</span><span>⏻</span></div>
+
+  <!-- 登录中 / Jumpscare 视频 / 输错吓人画面 -->
+  <div id="loading"><div class="spinner"></div><div>欢迎</div></div>
+  <div id="scare">
+    <video id="vid" src="jumpscare.mp4" playsinline webkit-playsinline preload="auto" disablepictureinpicture></video>
+    <button id="videoRetry" type="button" hidden>点击播放视频</button>
+  </div>
+  <div id="scream"></div>
+
+  <!-- 假桌面 -->
+  <div id="desktop">
+    <div id="icons"></div>
+    <div id="taskbar">
+      <div class="tbSpacer"></div>
+      <div id="tbLeft"><button class="tbBtn tbStart">⊞</button></div>
+      <div id="tbClock"></div>
+    </div>
+  </div>
+
+  <!-- 视频全屏播放器：点击桌面中的影片时显示 -->
+  <div id="videoPlayer" aria-hidden="true">
+    <video id="fullscreenVideo" playsinline webkit-playsinline controls preload="metadata"></video>
+    <button id="closeVideo" type="button" aria-label="返回桌面">← 返回桌面</button>
+    <div id="videoMessage" hidden></div>
+  </div>
+<script>
+// =====================================================
+//   设置文件：要改的东西全部在这里，其他文件不用动
+// =====================================================
+
+const CONFIG = {
+  // ---- 登录 ----
+  password: "20000915",
+  passwordHint: "YYYYMMDD",
+  userName: "沈少祺",
+
+  // ---- 输错密码 ----
+  scareEveryWrong: 1,
+  screamMs: 2600,
+
+  // ---- Jumpscare 视频 ----
+  unmuteAtSecond: 5,
+
+  // ---- 桌面 ----
+  openWithSingleClick: true,
+};
+
+const DIARY_PAGES = [
+  {
+    name: "01_三十五岁.txt", type: "text", icon: "📔",
+    content: `我小时候就知道，沈家的男人活不过三十五岁。
+
+爷爷是这样，父亲也是这样。家里人从来不肯细说，只让我别问。以前我觉得都是吓唬小孩的，现在轮到我，才知道他们没有骗我。
+
+最近身体越来越差，晚上总听见有人在叫我的名字。离三十五岁越近，我就越睡不着。
+
+我不想死。真的不想。`
+  },
+  {
+    name: "02_陆婆.txt", type: "text", icon: "📔",
+    content: `家里请来了陆婆。她翻了沈家的旧册子，又问了我很多事，最后说，这种东西根本除不掉。
+
+但她有办法让我活下去。
+
+我问要付出什么代价，她只说，得找人替我承受，而且不能让那个人知道实情。要让对方心甘情愿地完成某种仪式，才算数。
+
+听完她的话，我一阵反胃。母亲却问她，什么时候能开始。`
+  },
+  {
+    name: "03_不敢说.txt", type: "text", icon: "📔",
+    content: `这几天阿绣一直问我，为什么家里突然对她这么好。她还说，我终于肯为我们的以后打算了。
+
+我不敢看她。
+
+桌上那些东西，陆婆让我一样都不能少。她反复交代，到时候该说什么、该做什么，不能有半点差错。最重要的是，绝对不能让阿绣起疑心。
+
+我知道这是在骗她。更恶心的是，我明明知道，还在照着做。
+
+刚才她给我打电话，说很期待那一天。
+
+我盯着手机，半天都没敢回。`
+  }
+];
+
+const DESKTOP_FILES = [
+  {
+    name: "Video",
+    type: "folder",
+    icon: "📁",
+    children: [
+      { name: "机关", type: "video", icon: "🎬", src: "mechanism.mp4" },
+      { name: "偷拍", type: "video", icon: "🎬", src: "jumpscare.mp4" },
+    ]
+  },
+  {
+    name: "日记",
+    type: "folder",
+    icon: "📔",
+    children: DIARY_PAGES
+  },
+];
+
+
+// =====================================================
+//   假桌面：图标、窗口、文件查看（文字 / 图片 / 视频 / 文件夹）
+// =====================================================
+
+const $ = id => document.getElementById(id);
+
+// ---------- 进入桌面（由 lock.js 在 jumpscare 结束后调用） ----------
+function showDesktop() {
+  try {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  } catch (_) {}
+  ["scare", "login", "clockScreen", "corner", "bg"].forEach(id => {
+    $(id).classList.remove("show");
+    $(id).style.display = "none";
+  });
+  $("desktop").classList.add("show");
+}
+
+// ---------- 任务栏时钟 ----------
+function updateTaskbarClock() {
+  const d = new Date();
+  const time = d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
+  const date = d.toLocaleDateString("zh-CN", { year: "numeric", month: "numeric", day: "numeric" });
+  $("tbClock").innerHTML = `${time}<br>${date}`;
+}
+updateTaskbarClock();
+setInterval(updateTaskbarClock, 1000);
+
+// ---------- 桌面图标 ----------
+const ICON = { text: "📄", image: "🖼️", video: "🎬", folder: "📁" };
+
+function getItemIcon(item) {
+  if (item.icon) return item.icon;
+  return item.password ? "🔒" : (ICON[item.type] || "📄");
+}
+
+function makeIcon(item) {
+  const el = document.createElement("div");
+  el.className = "icon";
+  el.innerHTML = `<div class="ico">${getItemIcon(item)}</div><div class="nm"></div>`;
+  el.querySelector(".nm").textContent = item.name;
+  const event = CONFIG.openWithSingleClick ? "click" : "dblclick";
+  el.addEventListener(event, e => { e.stopPropagation(); openItem(item); });
+  return el;
+}
+DESKTOP_FILES.forEach(item => $("icons").appendChild(makeIcon(item)));
+
+// ---------- 窗口管理 ----------
+const wins = {};            // key -> { el, btn }
+let zTop = 10;
+let cascade = 0;
+
+function createWindow(key, title, icon, width, height, bodyClass, bodyEl, options = {}) {
+  if (wins[key]) { focusWin(key); return; }
+
+  width  = Math.min(width,  innerWidth - 40);
+  height = Math.min(height, innerHeight - 100);
+
+  const el = document.createElement("div");
+  el.className = "win";
+  el.style.width  = width + "px";
+  el.style.height = height + "px";
+  el.style.left = Math.max(10, (innerWidth - width) / 2 + (cascade % 6) * 28 - 60) + "px";
+  el.style.top  = Math.max(10, (innerHeight - 48 - height) / 2 + (cascade % 6) * 28 - 60) + "px";
+  cascade++;
+
+  const showBack = !!options.showBack;
+  el.innerHTML = `
+    <div class="wtitle">
+      <span>${icon} ${title}</span>
+      <div class="wbtns">${showBack ? '<span class="wback" title="返回桌面">↩</span>' : ""}<span class="wmin">—</span><span class="wx">✕</span></div>
+    </div>
+    <div class="wbody ${bodyClass}"></div>`;
+  el.querySelector(".wbody").appendChild(bodyEl);
+  $("desktop").appendChild(el);
+
+  const btn = document.createElement("button");
+  btn.className = "tbBtn";
+  btn.textContent = `${icon} ${title}`;
+  $("tbLeft").appendChild(btn);
+
+  wins[key] = { el, btn };
+
+  el.addEventListener("pointerdown", () => focusWin(key));
+  el.querySelector(".wx").addEventListener("click", e => { e.stopPropagation(); closeWin(key); });
+  el.querySelector(".wmin").addEventListener("click", e => { e.stopPropagation(); minimizeWin(key); });
+  const backBtn = el.querySelector(".wback");
+  if (backBtn) backBtn.addEventListener("click", e => { e.stopPropagation(); closeWin(key); });
+  btn.addEventListener("click", () => {
+    const hidden = el.classList.contains("min") || !btn.classList.contains("active");
+    hidden ? focusWin(key) : minimizeWin(key);
+  });
+
+  makeDraggable(el, width);
+  focusWin(key);
+}
+
+function makeDraggable(el, width) {
+  const bar = el.querySelector(".wtitle");
+  bar.addEventListener("pointerdown", e => {
+    if (e.target.closest(".wbtns")) return;
+    const dx = e.clientX - el.offsetLeft;
+    const dy = e.clientY - el.offsetTop;
+    bar.setPointerCapture(e.pointerId);
+
+    const move = ev => {
+      el.style.left = Math.min(innerWidth - 80, Math.max(120 - width, ev.clientX - dx)) + "px";
+      el.style.top  = Math.min(innerHeight - 90, Math.max(0, ev.clientY - dy)) + "px";
+    };
+    const up = () => {
+      bar.removeEventListener("pointermove", move);
+      bar.removeEventListener("pointerup", up);
+    };
+    bar.addEventListener("pointermove", move);
+    bar.addEventListener("pointerup", up);
+  });
+}
+
+function focusWin(key) {
+  const w = wins[key];
+  if (!w) return;
+  w.el.classList.remove("min");
+  w.el.style.zIndex = ++zTop;
+  Object.values(wins).forEach(x => x.btn.classList.remove("active"));
+  w.btn.classList.add("active");
+}
+
+function minimizeWin(key) {
+  const w = wins[key];
+  w.el.classList.add("min");
+  w.btn.classList.remove("active");
+}
+
+function closeWin(key) {
+  const w = wins[key];
+  if (!w) return;
+  w.el.remove();
+  w.btn.remove();
+  delete wins[key];
+}
+
+// ---------- 打开文件 ----------
+let nextId = 0;
+
+function openItem(item) {
+  if (!item._id) item._id = "item" + (++nextId);
+  if (item.password && !item._unlocked) return askPassword(item);
+
+  const key = item._id;
+
+  if (item.type === "text") {
+    const body = document.createElement("div");
+    body.textContent = item.content;
+    createWindow(key, item.name, getItemIcon(item), 540, 420, "text", body, { showBack: true });
+
+  } else if (item.type === "image") {
+    const img = document.createElement("img");
+    img.src = item.src;
+    img.onerror = () => {
+      const msg = document.createElement("div");
+      msg.textContent = "无法打开此图片。";
+      img.replaceWith(msg);
+    };
+    createWindow(key, item.name, getItemIcon(item), 700, 500, "media", img, { showBack: true });
+
+  } else if (item.type === "video") {
+    openFullscreenVideo(item);
+
+  } else if (item.type === "folder") {
+    const body = document.createElement("div");
+    body.style.display = "contents";
+    item.children.forEach(child => body.appendChild(makeIcon(child)));
+    createWindow(key, item.name, getItemIcon(item), 520, 360, "folder", body, { showBack: true });
+  }
+}
+
+function askPassword(item) {
+  const key = "ask_" + item._id;
+  const body = document.createElement("div");
+  body.className = "askInner";
+  body.innerHTML = `
+    <div>此文件已加密，请输入密码</div>
+    <input type="password" spellcheck="false">
+    <div class="msg"></div>
+    <button>确定</button>`;
+
+  const input = body.querySelector("input");
+  const msg = body.querySelector(".msg");
+
+  const submit = () => {
+    if (input.value === item.password) {
+      item._unlocked = true;
+      closeWin(key);
+      openItem(item);
+    } else {
+      msg.textContent = "密码错误，请重试。";
+      input.value = "";
+      input.focus();
+    }
+  };
+  body.querySelector("button").addEventListener("click", submit);
+  input.addEventListener("keydown", e => { if (e.key === "Enter") submit(); });
+
+  createWindow(key, "需要密码", "🔒", 340, 230, "ask", body);
+  setTimeout(() => input.focus(), 50);
+}
+
+document.addEventListener("contextmenu", e => e.preventDefault());
+
+// ---------- 全屏视频播放器：点击视频即播放，无二次点击 ----------
+const videoPlayer = $("videoPlayer");
+const fullscreenVideo = $("fullscreenVideo");
+const closeVideoButton = $("closeVideo");
+const videoMessage = $("videoMessage");
+let openingVideo = false;
+
+function videoNotice(message) {
+  videoMessage.textContent = message;
+  videoMessage.hidden = !message;
+}
+
+function openFullscreenVideo(item) {
+  openingVideo = true;
+  videoNotice("");
+  videoPlayer.classList.add("show");
+  videoPlayer.setAttribute("aria-hidden", "false");
+  fullscreenVideo.pause();
+  fullscreenVideo.src = item.src;
+  fullscreenVideo.muted = false;
+  fullscreenVideo.volume = 1;
+  // play() 与用户点击同步调用，降低有声播放被阻挡的可能性。
+  const playing = fullscreenVideo.play();
+  if (playing && typeof playing.catch === "function") {
+    playing.catch(err => {
+      if (!openingVideo) return;
+      if (err && err.name === "AbortError") return;
+      videoNotice(err && err.name === "NotAllowedError"
+        ? "浏览器阻止了有声自动播放，请检查浏览器的自动播放权限。"
+        : "影片无法播放，请确认视频文件已放入 网页同一层。");
+    });
+  }
+  // 同次用户操作请求全屏；即使浏览器不支持也有 CSS 全屏后备。
+  try {
+    if (videoPlayer.requestFullscreen && !document.fullscreenElement) {
+      const request = videoPlayer.requestFullscreen();
+      if (request && request.catch) request.catch(() => {});
+    }
+  } catch (_) {}
+}
+
+function closeFullscreenVideo() {
+  if (!openingVideo) return;
+  openingVideo = false;
+  // 先把焦点移出播放器，再隐藏，避免 aria-hidden 警告。
+  if (videoPlayer.contains(document.activeElement)) document.activeElement.blur();
+  fullscreenVideo.pause();
+  videoPlayer.classList.remove("show");
+  videoPlayer.setAttribute("aria-hidden", "true");
+  fullscreenVideo.removeAttribute("src");
+  fullscreenVideo.load();
+  videoNotice("");
+  if (document.fullscreenElement === videoPlayer && document.exitFullscreen) {
+    const exit = document.exitFullscreen();
+    if (exit && exit.catch) exit.catch(() => {});
+  }
+}
+
+closeVideoButton.addEventListener("click", closeFullscreenVideo);
+fullscreenVideo.addEventListener("playing", () => videoNotice(""));
+fullscreenVideo.addEventListener("ended", closeFullscreenVideo);
+fullscreenVideo.addEventListener("error", () => {
+  if (openingVideo) videoNotice("无法读取影片。请确认 mechanism.mp4 或 jumpscare.mp4 存在。");
+});
+document.addEventListener("fullscreenchange", () => {
+  if (!document.fullscreenElement && openingVideo) closeFullscreenVideo();
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && openingVideo) closeFullscreenVideo();
+});
+
+
+// =====================================================
+//   锁屏：登录 → 密码提示 → 输错吓人 → Jumpscare 视频
+// =====================================================
+
+let loginOpen = false;
+let wrongCount = 0;
+let screaming = false;
+
+// ---------- 锁屏时钟 ----------
+function updateLockClock() {
+  const d = new Date();
+  $("time").textContent = d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
+  $("date").textContent = d.toLocaleDateString("zh-CN", { month: "long", day: "numeric", weekday: "long" });
+}
+updateLockClock();
+setInterval(updateLockClock, 1000);
+
+$("username").textContent = CONFIG.userName;
+$("pwHint").textContent = "密码提示：" + CONFIG.passwordHint;
+
+// ---------- 从时间画面进入登录 ----------
+function openLogin(ev) {
+  prepareAudio();                       // 在第一次点击时解锁手机的声音权限
+  if (loginOpen) return;
+  if (ev && ev.target && ev.target.closest && ev.target.closest("#loginBack")) return;
+  loginOpen = true;
+  $("clockScreen").classList.add("hide");
+  $("login").classList.add("show");
+  setTimeout(() => $("pw").focus(), 300);
+}
+function backToLockScreen() {
+  loginOpen = false;
+  wrongCount = 0;
+  $("pw").value = "";
+  $("pwHint").hidden = true;
+  $("pwArea").classList.remove("hidden");
+  $("errBox").classList.remove("show");
+  $("login").classList.remove("show");
+  $("clockScreen").classList.remove("hide");
+}
+document.addEventListener("click", openLogin);
+document.addEventListener("keydown", openLogin);
+
+// ---------- 提交密码 ----------
+function submitPassword() {
+  if (screaming) return;
+  prepareAudio();
+
+  if ($("pw").value === CONFIG.password) {
+    showDesktop(); // 正确密码直接进入桌面，不自动播放视频
+    return;
+  }
+
+  wrongCount++;
+  if (wrongCount % CONFIG.scareEveryWrong === 0) {
+    screamScare(showError);             // 吓完再显示"密码不正确"
+  } else {
+    showError();
+  }
+}
+
+function showError() {
+  $("pwArea").classList.add("hidden");
+  $("errBox").classList.add("show");
+  $("errOk").focus();
+}
+
+function dismissError() {
+  $("errBox").classList.remove("show");
+  $("pwArea").classList.remove("hidden");
+  $("pwHint").hidden = false;           // 输错 1 次后出现密码提示
+  $("pw").value = "";
+  $("pw").focus();
+}
+
+$("go").addEventListener("click", e => { e.stopPropagation(); submitPassword(); });
+$("pw").addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  e.preventDefault();                   // 防止这一下 Enter 又"点击"到刚出现的确定按钮
+  e.stopPropagation();                  // 防止下面的全局 Enter 监听把"密码不正确"立刻关掉
+  submitPassword();
+});
+$("errOk").addEventListener("click", e => { e.stopPropagation(); dismissError(); });
+$("loginBack").addEventListener("click", e => { e.stopPropagation(); backToLockScreen(); });
+document.addEventListener("keydown", e => {
+  const errorOpen = $("errBox").classList.contains("show");
+  if (errorOpen && (e.key === "Enter" || e.key === " ")) dismissError();
+});
+
+// =====================================================
+//   输错吓人：画面抖动 + 尖叫声 + 震动
+// =====================================================
+
+let audioCtx = null;
+const screamFile = { pause() {} }; // 使用内建音效，避免请求不存在的 scream.mp3
+
+// 手机/浏览器必须在用户点击时才允许发声，所以提前"解锁"
+function prepareAudio() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+  } catch (_) {}
+}
+
+function screamScare(done) {
+  screaming = true;
+  $("scream").classList.add("show");
+  if (navigator.vibrate) navigator.vibrate([200, 80, 300, 80, 500]);
+  playScream();
+
+  setTimeout(() => {
+    $("scream").classList.remove("show");
+    screamFile.pause();
+    screaming = false;
+    done();
+  }, CONFIG.screamMs);
+}
+
+function playScream() {
+  synthScream();
+}
+
+function synthScream() {
+  if (!audioCtx) return;
+  const ctx = audioCtx;
+  const dur = CONFIG.screamMs / 1000;
+  const t0 = ctx.currentTime;
+
+  // 输出链：失真 → 压缩（让声音又响又"挤"）→ 总音量
+  const master = ctx.createGain();
+  master.gain.value = 2.5;
+  const comp = ctx.createDynamicsCompressor();
+  comp.threshold.value = -35;
+  comp.ratio.value = 20;
+  const shaper = ctx.createWaveShaper();
+  shaper.curve = distortionCurve(80);
+  shaper.oversample = "4x";
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0, t0);
+  env.gain.linearRampToValueAtTime(1, t0 + 0.02);
+  env.gain.setValueAtTime(1, t0 + dur - 0.4);
+  env.gain.linearRampToValueAtTime(0, t0 + dur);
+  env.connect(shaper); shaper.connect(comp); comp.connect(master); master.connect(ctx.destination);
+
+  // 两个略微不同音高的锯齿波，音调快速拉高再起伏，加颤音
+  [0, 35].forEach(detune => {
+    const osc = ctx.createOscillator();
+    osc.type = "sawtooth";
+    osc.detune.value = detune;
+    osc.frequency.setValueAtTime(450, t0);
+    osc.frequency.exponentialRampToValueAtTime(1700, t0 + 0.25);
+    osc.frequency.exponentialRampToValueAtTime(950,  t0 + dur * 0.55);
+    osc.frequency.exponentialRampToValueAtTime(1500, t0 + dur);
+
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    lfo.frequency.value = 13;
+    lfoGain.gain.value = 70;
+    lfo.connect(lfoGain); lfoGain.connect(osc.frequency);
+
+    osc.connect(env);
+    osc.start(t0); lfo.start(t0);
+    osc.stop(t0 + dur); lfo.stop(t0 + dur);
+  });
+
+  // 白噪音（嘶哑的气声）
+  const noiseBuf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
+  const data = noiseBuf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  const noise = ctx.createBufferSource();
+  noise.buffer = noiseBuf;
+  const band = ctx.createBiquadFilter();
+  band.type = "bandpass";
+  band.frequency.value = 2600;
+  band.Q.value = 0.7;
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.value = 0.7;
+  noise.connect(band); band.connect(noiseGain); noiseGain.connect(env);
+  noise.start(t0);
+}
+
+function distortionCurve(amount) {
+  const n = 1024, curve = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = (i * 2) / n - 1;
+    curve[i] = ((3 + amount) * x * 20 * Math.PI / 180) / (Math.PI + amount * Math.abs(x));
+  }
+  return curve;
+}
+
+// =====================================================
+//   密码正确：Jumpscare 视频 → 假桌面
+// =====================================================
+
+let scareDone = false;
+let scareWatchdog = null;
+
+async function tryFullscreen() {
+  try {
+    const p = $("scare").requestFullscreen && $("scare").requestFullscreen({ navigationUI: "hide" });
+    if (p && p.catch) await p.catch(() => {});
+  } catch (_) {}
+  try {
+    if (screen.orientation && screen.orientation.lock) {
+      await screen.orientation.lock("landscape").catch(() => {});
+    }
+  } catch (_) {}
+}
+
+// 视频前几秒静音，之后开到最大声（只能控制网页音量，不能控制系统音量）
+function enforceVideoAudio() {
+  const v = $("vid");
+  if (v.currentTime < CONFIG.unmuteAtSecond) {
+    v.muted = true;
+    v.volume = 0;
+  } else {
+    v.volume = 1;
+    v.muted = false;
+  }
+}
+
+function playJumpscare() {
+  const v = $("vid");
+  scareDone = false;
+  $("videoRetry").hidden = true;
+  $("scare").classList.add("show");
+
+  v.currentTime = 0;
+  v.muted = true;
+  v.volume = 0;
+  tryFullscreen();                      // 必须在点击/按键的同一时刻请求
+
+  const started = v.play();
+  if (started && started.catch) {
+    started.catch(() => {
+      // 部分手机阻止有声视频自动播放，提供明确的重试操作
+      $("videoRetry").hidden = false;
+    });
+  }
+
+  clearInterval(scareWatchdog);
+  scareWatchdog = setInterval(enforceVideoAudio, 100);
+  v.onended = () => {
+    if (scareDone) return;
+    scareDone = true;
+    clearInterval(scareWatchdog);
+    showDesktop();
+  };
+}
+
+// 当浏览器限制自动播放时，玩家可以手动启动。
+$("videoRetry").addEventListener("click", e => {
+  e.stopPropagation();
+  tryFullscreen();
+  $("vid").play().then(() => { $("videoRetry").hidden = true; }).catch(() => {
+    $("videoRetry").textContent = "无法播放，请检查视频格式";
+  });
+});
+$("vid").addEventListener("error", () => {
+  $("videoRetry").hidden = false;
+  $("videoRetry").textContent = "视频加载失败，请检查文件";
+});
+
+</script>
+</body>
+</html>
